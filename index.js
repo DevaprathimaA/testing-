@@ -1,43 +1,39 @@
-console.log("Hello, World!");
-var express = require('express')
-var bodyParser = require('body-parser')
-var passport = require('passport')
-var session = require('express-session')
-var ejs = require('ejs')
-var morgan = require('morgan')
-const fileUpload = require('express-fileupload');
-var config = require('./config/server')
+const express = require('express');
+const bodyParser = require('body-parser');
+const mysql = require('mysql');
 
-//Initialize Express
-var app = express()
-require('./core/passport')(passport)
-app.use(express.static('public'))
-app.set('view engine','ejs')
-app.use(morgan('tiny'))
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(fileUpload());
+const app = express();
 
-// Enable for Reverse proxy support
-// app.set('trust proxy', 1) 
+app.use(bodyParser.urlencoded({ extended: false }));
 
-// Intialize Session
-app.use(session({
-  secret: 'keyboard cat',
-  resave: true,
-  saveUninitialized: true,
-  cookie: { secure: false }
-}))
+app.post('/login', (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
 
-// Initialize Passport
-app.use(passport.initialize())
-app.use(passport.session())
+  const connection = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: 'password',
+    database: 'mydatabase'
+  });
 
-// Initialize express-flash
-app.use(require('express-flash')());
+  const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
 
-// Routing
-app.use('/app',require('./routes/app')())
-app.use('/',require('./routes/main')(passport))
+  connection.query(query, (err, results) => {
+    if (err) {
+      res.status(500).send('Internal Server Error');
+    } else {
+      if (results.length > 0) {
+        res.send('Login successful');
+      } else {
+        res.send('Invalid credentials');
+      }
+    }
+  });
 
-// Start Server
-app.listen(config.port, config.listen)
+  connection.end();
+});
+
+app.listen(3000, () => {
+  console.log('Server started on port 3000');
+});
